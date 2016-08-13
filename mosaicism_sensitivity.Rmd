@@ -10,6 +10,12 @@ runtime: shiny
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r setupAnalysis, echo=FALSE}
+if (!file.exists("~/Downloads/120x_denovo_cut.txt")) {
+  download.file("http://gist.githubusercontent.com/DonFreed/329b77aeba3bd1ee9fb1a85741ceeb20/raw/61bcb0a4538b9aebc3d16be771f5a20a8b848875/120x_denovo_cut.txt", "~/Downloads/120x_denovo_cut.txt")
+}
+```
+
 Detecting mosaic variation is difficult. In order to shed some light on the process, we've made a model of mosaic variation in bulk tissue to compare the sensitivies of two library preparation methods, standard Illumina library preparation and the 10x Genomics Chromium platiform.
 
 ## Detecting mosic variation with standard library preparation
