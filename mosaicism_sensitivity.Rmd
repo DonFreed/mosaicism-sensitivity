@@ -1,0 +1,110 @@
+---
+title: "Mosaicism Bulk Sequencing"
+author: "Donald Freed"
+date: "August 10, 2016"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Detecting mosaic variation is difficult. In order to shed some light on the process, we've made a model of mosaic variation in bulk tissue to compare the sensitivies of two library preparation methods, standard Illumina library preparation and the 10x Genomics Chromium platiform.
+
+## Detecting mosic variation with standard library preparation
+
+##### Details
+
+The depth of mosaic variants is simulated using the Poisson distribution with lambda parameter set to the depth of sequencing. The number of reads supporting mosaic variants is simulated using the binomial distribution, with the probability of a sequence read supporing the mosaic variant equal to one-half the fraction of affected cells. Mosaic variants are correctly classified if they pass the alternate read filters and if a binomial test with false-discovery protection indicates the variant deviates significantly from the expected heterozygous distribution of alternate reads. 
+
+```{r standard, echo=FALSE}
+inputPanel(
+  sliderInput("depth", label = "Depth of sequencing",
+              min = 30, max = 210, value = 30, step = 1),
+  sliderInput("fdr", label = "False-discovery rate",
+              min = 0.01, max = 0.95, value = 0.05, step = 0.01),
+  numericInput("min_alt", label = "Minimum number of alternate reads",
+               min = 0, step = 1, value = 2),
+  numericInput("min_frac", label = "Minimum alternate allele fraction",
+               min = 0, max = 1, value = 0.05)
+)
+
+renderPlot({
+  var.file <- "~/Downloads/120x_denovo_cut.txt"
+  
+  var.subset <- input$depth / 120
+  
+  vars <- read.csv(var.file, header=FALSE, sep='\t', col.names = c("ref", "alt"))
+  vars$ref <- round(vars$ref * var.subset)
+  vars$alt <- round(vars$alt * var.subset)
+  vars$depth <- vars$ref + vars$alt
+  vars$p <- pbinom(vars$alt, vars$depth, 0.5)
+  vars$q <- p.adjust(vars$p, method="fdr")
+  
+  index <- sum(vars$q < input$fdr) + 1
+  min.p <- sort(vars$p)[index]
+  
+  sensitivity <- rep(0, 21)
+  depths <- rpois(1000, input$depth)
+  for (affected.fraction in seq(0.05, 0.95, 0.05)) {
+    alt.reads <- rbinom(1000, depths, affected.fraction / 2)
+    alt.fractions <- alt.reads / depths
+    probs <- pbinom(alt.reads, depths, 0.5)
+    idx <- (affected.fraction + 0.05) * 20
+    sensitivity[idx] <- sum(alt.reads >= input$min_alt & 
+                              alt.fractions >= input$min_frac &
+                              probs < min.p) / 1000
+  }
+  plot(seq(0, 1, 0.05), sensitivity, xlab="Fraction of affected cells", main="Mosaic Variant sensitivity", ylim=c(0, 1))
+})
+
+```
+
+## Detecting mosaic variation with the 10x Genomics Chromium platiform
+
+
+##### Details
+
+Mosaic variants can be detected from 10x Genomics data using sequence read phasing. If sequence reads on the same haplotype as the mosaic variant support the reference allele, this can be considered evidence for mosaicisim. The number of reads from the mosaic haplotype can be simulated from the poisson distribution at one-half the target detph. The fraction of unique molecules at a site is calculated given that each input library has ~300 genomic equilivants. The number of reads and the number of molecules supporting the reference allele of the mosaic haplotype are modeled using the binomial distribution. Mosaic variatnts are correctly classified if they pass all filters.
+
+```{r tenX, echo=FALSE}
+inputPanel(
+  sliderInput("tenx_depth", label = "Depth of sequencing:",
+              min = 30, max = 210, value = 30, step = 1),
+  sliderInput("libraries", label = "Number of libraries sequenced",
+              min = 1, max = 7, value = 1, step = 1),
+  numericInput("tenx_min_alt", label = "Minimum number of alternate reads",
+               min = 0, step = 1, value = 2),
+  numericInput("tenx_min_frac", label = "Minimum alternate allele fraction",
+               min = 0, max = 1, value = 0.05),
+  numericInput("min_phase_reads", label = "Minimum number of reads on the mosaic haplotype that support the reference allele",
+               min = 0, step = 1, value = 2),
+  numericInput("min_phase_barcodes", label = "Minimum number of barcodes on the mosaic haplotype that support the reference allele",
+               min = 0, step = 1, value = 2)
+)
+
+renderPlot({
+  haploid.depth <- rpois(1000, input$tenx_depth / 2)
+  n.genomic.eq <- 300 * input$libraries # Approximate
+  
+  n.molecules.at.position <- round(n.genomic.eq * (1 - ((n.genomic.eq - 1) / n.genomic.eq) ** haploid.depth))
+  repeated.barcodes <- haploid.depth - n.molecules.at.position
+  
+  sensitivity <- rep(0, 21)
+  for (affected.fraction in seq(0.05, 0.95, 0.05)) {
+    n.barcodes.support.ref <- rbinom(1000, n.molecules.at.position, 1 - affected.fraction)
+    repeats.support.ref <- rbinom(1000, repeated.barcodes, 1 - affected.fraction)
+    n.reads.support.ref <- n.barcodes.support.ref + repeats.support.ref
+    n.reads.support.alt <- haploid.depth - n.reads.support.ref
+    alt.fraction <- n.reads.support.alt / (haploid.depth * 2)
+    idx <- (affected.fraction + 0.05) * 20
+    sensitivity[idx] <- sum(n.reads.support.alt >= input$tenx_min_alt & 
+                              alt.fraction >= input$tenx_min_frac &
+                              n.reads.support.ref >= input$min_phase_reads &
+                              n.barcodes.support.ref >= input$min_phase_barcodes) / 1000
+  }
+  plot(seq(0, 1, 0.05), sensitivity, xlab="Fraction of affected cells", main="Mosaic Variant sensitivity", ylim=c(0, 1))
+})
+
+```
