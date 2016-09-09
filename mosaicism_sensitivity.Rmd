@@ -8,12 +8,9 @@ runtime: shiny
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r setupAnalysis, echo=FALSE}
-if (!file.exists("~/Downloads/120x_denovo_cut.txt")) {
-  download.file("http://gist.githubusercontent.com/DonFreed/329b77aeba3bd1ee9fb1a85741ceeb20/raw/61bcb0a4538b9aebc3d16be771f5a20a8b848875/120x_denovo_cut.txt", "~/Downloads/120x_denovo_cut.txt")
-}
+var.file <- "120x_denovo_cut.txt"
+vars <- read.csv(var.file, header=FALSE, sep='\t', col.names = c("ref", "alt"))
 ```
 
 Detecting mosaic variation is difficult. In order to shed some light on the process, we've made a model of mosaic variation in bulk tissue to compare the sensitivies of two library preparation methods, standard Illumina library preparation and the 10x Genomics Chromium platiform.
@@ -22,7 +19,7 @@ Detecting mosaic variation is difficult. In order to shed some light on the proc
 
 ##### Details
 
-The depth of mosaic variants is simulated using the Poisson distribution with lambda parameter set to the depth of sequencing. The number of reads supporting mosaic variants is simulated using the binomial distribution, with the probability of a sequence read supporing the mosaic variant equal to one-half the fraction of affected cells. Mosaic variants are correctly classified if they pass the alternate read filters and if a binomial test with false-discovery protection indicates the variant deviates significantly from the expected heterozygous distribution of alternate reads. 
+The depth of mosaic variants is simulated using the Poisson distribution with lambda parameter set to the depth of sequencing. The number of reads supporting mosaic variants is simulated using the binomial distribution, with the probability of a sequence read supporting the mosaic variant equal to one-half the fraction of affected cells. Mosaic variants are correctly classified if they pass the alternate read filters and if a binomial test with false-discovery protection indicates the variant deviates significantly from the expected heterozygous distribution of alternate reads.
 
 ```{r standard, echo=FALSE}
 inputPanel(
@@ -37,11 +34,8 @@ inputPanel(
 )
 
 renderPlot({
-  var.file <- "~/Downloads/120x_denovo_cut.txt"
-  
   var.subset <- input$depth / 120
   
-  vars <- read.csv(var.file, header=FALSE, sep='\t', col.names = c("ref", "alt"))
   vars$ref <- round(vars$ref * var.subset)
   vars$alt <- round(vars$alt * var.subset)
   vars$depth <- vars$ref + vars$alt
@@ -67,12 +61,12 @@ renderPlot({
 
 ```
 
-## Detecting mosaic variation with the 10x Genomics Chromium platiform
+## Detecting mosaic variation with the 10x Genomics Chromium platform
 
 
 ##### Details
 
-Mosaic variants can be detected from 10x Genomics data using sequence read phasing. If sequence reads on the same haplotype as the mosaic variant support the reference allele, this can be considered evidence for mosaicisim. The number of reads from the mosaic haplotype can be simulated from the poisson distribution at one-half the target detph. The fraction of unique molecules at a site is calculated given that each input library has ~300 genomic equilivants. The number of reads and the number of molecules supporting the reference allele of the mosaic haplotype are modeled using the binomial distribution. Mosaic variatnts are correctly classified if they pass all filters.
+Mosaic variants can be detected from 10x Genomics data using sequence read phasing. If sequence reads on the same haplotype as the mosaic variant support the reference allele, this can be considered evidence for mosaicism. The number of reads from the mosaic haplotype can be simulated from the Poisson distribution at one-half the target depth. The fraction of unique molecules at a site is calculated given that each input library has ~300 genomic equivalents. The number of reads and the number of molecules supporting the reference allele of the mosaic haplotype are modeled using the binomial distribution. Mosaic variants are correctly classified if they pass all filters.
 
 ```{r tenX, echo=FALSE}
 inputPanel(
