@@ -13,7 +13,7 @@ var.file <- "120x_denovo_cut.txt"
 vars <- read.csv(var.file, header=FALSE, sep='\t', col.names = c("ref", "alt"))
 ```
 
-Detecting mosaic variation is difficult. In order to shed some light on the process, we've made a model of mosaic variation in bulk tissue to compare the sensitivies of two library preparation methods, standard Illumina library preparation and the 10x Genomics Chromium platiform.
+Detecting mosaic variation is difficult. In order to shed some light on the process, we've made a model of mosaic variation in bulk tissue to compare the sensitivities of two library preparation methods, standard Illumina library preparation and the 10x Genomics Chromium platform.
 
 ## Detecting mosic variation with standard library preparation
 
